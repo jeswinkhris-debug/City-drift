@@ -1,0 +1,86 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // User Profile Validation
+    function isValidUser(data) {
+      return data.uid is string && data.uid == request.auth.uid
+          && data.username is string && data.username.size() >= 3 && data.username.size() <= 20
+          && data.money is number && data.money >= 0
+          && data.totalWins is number && data.totalWins >= 0
+          && data.ownedCars is map
+          && data.currentCarId is string
+          && data.createdAt is timestamp
+          && data.updatedAt == request.time;
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) 
+                    && isValidUser(incoming())
+                    && incoming().createdAt == request.time;
+      
+      allow update: if isOwner(userId) 
+                    && isValidUser(incoming())
+                    && incoming().createdAt == existing().createdAt
+                    && (
+                      // Action: Spend money / Buy Car / Upgrade
+                      (incoming().money <= existing().money && incoming().totalWins == existing().totalWins) ||
+                      // Action: Finish Race
+                      (incoming().totalWins >= existing().totalWins && incoming().money >= existing().money) ||
+                      // Action: Selection change only
+                      (incoming().money == existing().money && incoming().totalWins == existing().totalWins)
+                    );
+    }
+
+    // Leaderboard Validation
+    function isValidLeaderboardEntry(data, trackId, userId) {
+      return data.userId == userId 
+          && data.userId == request.auth.uid
+          && data.username is string
+          && data.time is number && data.time > 0
+          && data.trackId == trackId
+          && data.carId is string
+          && data.timestamp == request.time;
+    }
+
+    match /leaderboards/{trackId}/entries/{userId} {
+      allow list: if isSignedIn();
+      allow get: if isSignedIn();
+      allow create: if isSignedIn() 
+                    && isOwner(userId)
+                    && isValidId(trackId)
+                    && isValidLeaderboardEntry(incoming(), trackId, userId);
+      // Entries are immutable for a specific performance record, or can be updated if time is better
+      allow update: if isSignedIn() 
+                    && isOwner(userId)
+                    && isValidLeaderboardEntry(incoming(), trackId, userId)
+                    && incoming().time < existing().time;
+    }
+  }
+}

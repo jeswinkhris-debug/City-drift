@@ -1,0 +1,62 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account information, currency, and progress",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "username": { "type": "string" },
+        "money": { "type": "number" },
+        "totalWins": { "type": "number" },
+        "ownedCars": { 
+          "type": "object",
+          "description": "Map of carId to CarState"
+        },
+        "currentCarId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "username", "money", "ownedCars", "currentCarId"]
+    },
+    "CarState": {
+      "title": "Car State",
+      "description": "Customization and performance data for a specific car",
+      "type": "object",
+      "properties": {
+        "carId": { "type": "string" },
+        "paintColor": { "type": "string" },
+        "decals": { "type": "array", "items": { "type": "string" } },
+        "bodyKit": { "type": "string" },
+        "engineLevel": { "type": "number" },
+        "suspensionLevel": { "type": "number" },
+        "tiresLevel": { "type": "number" }
+      },
+      "required": ["carId", "paintColor", "engineLevel", "suspensionLevel", "tiresLevel"]
+    },
+    "LeaderboardEntry": {
+      "title": "Leaderboard Entry",
+      "description": "A record of a user's best time on a specific track",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "username": { "type": "string" },
+        "time": { "type": "number" },
+        "trackId": { "type": "string" },
+        "carId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "username", "time", "trackId", "carId", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User-specific data and game progress"
+    },
+    "/leaderboards/{trackId}/entries/{userId}": {
+      "schema": "LeaderboardEntry",
+      "description": "Leaderboard records scoped by track and user"
+    }
+  }
+}
